@@ -68,7 +68,53 @@ func (c *Client) SessionCookie() string {
 	return ""
 }
 
-// GetFeed stub — real implementation added in Task 5
+type ErrUnauthorized struct{}
+
+func (e *ErrUnauthorized) Error() string { return "session expired or invalid" }
+
+func (c *Client) get(path string, out any) error {
+	resp, err := c.httpClient.Get(c.baseURL + path)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+		return &ErrUnauthorized{}
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
 func (c *Client) GetFeed(feed string) ([]Topic, error) {
-	return nil, nil
+	var r topicListResponse
+	if err := c.get("/"+feed+".json", &r); err != nil {
+		return nil, err
+	}
+	return r.TopicList.Topics, nil
+}
+
+func (c *Client) GetCategories() ([]Category, error) {
+	var r categoryListResponse
+	if err := c.get("/categories.json", &r); err != nil {
+		return nil, err
+	}
+	return r.CategoryList.Categories, nil
+}
+
+func (c *Client) GetCategoryTopics(slug string, id int) ([]Topic, error) {
+	var r topicListResponse
+	if err := c.get(fmt.Sprintf("/c/%s/%d.json", slug, id), &r); err != nil {
+		return nil, err
+	}
+	return r.TopicList.Topics, nil
+}
+
+func (c *Client) GetThread(id int) (*Thread, error) {
+	var t Thread
+	if err := c.get(fmt.Sprintf("/t/%d.json", id), &t); err != nil {
+		return nil, err
+	}
+	return &t, nil
 }
