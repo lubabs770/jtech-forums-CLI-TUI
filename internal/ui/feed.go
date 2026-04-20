@@ -118,8 +118,23 @@ func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "h":
 			return f, func() tea.Msg { return popViewMsg{} }
-		case "tab":
-			f.feedIndex = (f.feedIndex + 1) % len(feeds)
+		case "tab", "shift+tab":
+			if msg.String() == "shift+tab" {
+				f.feedIndex = (f.feedIndex - 1 + len(feeds)) % len(feeds)
+			} else {
+				f.feedIndex = (f.feedIndex + 1) % len(feeds)
+			}
+			// If landing on "categories", push the sub-view without wiping
+			// this view's state so returning with `h` restores the prior feed.
+			if f.currentFeed() == "categories" {
+				// revert index so the underlying feed stays intact
+				if msg.String() == "shift+tab" {
+					f.feedIndex = (f.feedIndex + 1) % len(feeds)
+				} else {
+					f.feedIndex = (f.feedIndex - 1 + len(feeds)) % len(feeds)
+				}
+				return f, func() tea.Msg { return openCategoryMsg{} }
+			}
 			f.loading = true
 			f.err = ""
 			f.list.SetItems(nil)
@@ -229,7 +244,7 @@ func (f *feedView) baseView() string {
 	if f.err != "" {
 		return header + "\n\n" + errStyle.Render(f.err)
 	}
-	return header + "\n" + f.list.View() + "\n" + helpStyle.Render("enter open • n new topic • tab switch feed • h back")
+	return header + "\n" + f.list.View() + "\n" + helpStyle.Render("enter open • n new topic • tab/shift+tab switch feed • h back")
 }
 
 func (f *feedView) View() string {
