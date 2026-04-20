@@ -1,0 +1,97 @@
+<h2>TUI Layout Approach</h2>
+<p class="subtitle">How should the jtech forums TUI be structured? Pick the layout that feels right.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="font-size:11px;font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:10px;border-radius:4px;line-height:1.4">
+        <div style="border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px;color:#7aa2f7">jtech forums — Categories</div>
+        <div style="display:flex;gap:8px">
+          <div style="width:38%;border-right:1px solid #333;padding-right:8px">
+            <div style="color:#9ece6a;margin-bottom:4px">CATEGORIES</div>
+            <div style="color:#7aa2f7">▶ General</div>
+            <div style="padding-left:8px;color:#aaa">  Tech Talk</div>
+            <div style="padding-left:8px;color:#aaa">  Help & Support</div>
+            <div style="color:#aaa">  Off Topic</div>
+            <div style="color:#aaa">  Announcements</div>
+          </div>
+          <div style="width:62%">
+            <div style="color:#9ece6a;margin-bottom:4px">TOPICS — General</div>
+            <div style="color:#e0e0e0">New semester resources...</div>
+            <div style="color:#e0e0e0">Anyone tried the new lab...</div>
+            <div style="color:#7aa2f7;font-weight:bold">▶ Weekly discussion thr...</div>
+            <div style="color:#e0e0e0">Prof ratings megathread</div>
+            <div style="color:#e0e0e0">Study group sign-ups</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #333;margin-top:6px;padding-top:4px;color:#555;font-size:10px">j/k navigate  enter open  / search  n new post</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Two-pane split</h3>
+      <p>Categories on the left, topic list on the right. Both visible at once. Pressing enter opens the topic in a full-screen reading view.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="font-size:11px;font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:10px;border-radius:4px;line-height:1.4">
+        <div style="border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px;color:#7aa2f7">jtech forums › General › Weekly discussion thread</div>
+        <div style="color:#9ece6a;margin-bottom:4px">3 posts · 12 replies · last active 2h ago</div>
+        <div style="border-left:2px solid #7aa2f7;padding-left:6px;margin-bottom:6px">
+          <div style="color:#bb9af7">user123 · 2h ago</div>
+          <div>Hey everyone, this week's topic is finals prep.</div>
+          <div>Anyone have good resources for the DB exam?</div>
+        </div>
+        <div style="border-left:2px solid #555;padding-left:6px;margin-bottom:6px">
+          <div style="color:#bb9af7">devgirl · 1h ago</div>
+          <div>Check the pinned megathread, lots of past exams there.</div>
+        </div>
+        <div style="border-left:2px solid #9ece6a;padding-left:6px">
+          <div style="color:#bb9af7">you · just now</div>
+          <div style="color:#555">[composing reply...]</div>
+        </div>
+        <div style="border-top:1px solid #333;margin-top:6px;padding-top:4px;color:#555;font-size:10px">r reply  q back  j/k scroll  n new topic</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sequential drill-down</h3>
+      <p>Full-width views: Categories → Topic List → Thread. Navigate back with <code>q</code>. Clean breadcrumb trail. Each screen uses full terminal width.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="font-size:11px;font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:10px;border-radius:4px;line-height:1.4">
+        <div style="border-bottom:1px solid #444;padding-bottom:4px;margin-bottom:6px;color:#7aa2f7">jtech forums</div>
+        <div style="display:flex;gap:8px">
+          <div style="width:42%;border-right:1px solid #333;padding-right:8px">
+            <div style="color:#9ece6a;margin-bottom:2px">TOPICS</div>
+            <div style="color:#aaa">New semester resources</div>
+            <div style="color:#aaa">Anyone tried the new lab</div>
+            <div style="color:#7aa2f7;font-weight:bold">▶ Weekly discussion thr...</div>
+            <div style="color:#aaa">Prof ratings megathread</div>
+          </div>
+          <div style="width:58%">
+            <div style="color:#9ece6a;margin-bottom:2px">THREAD</div>
+            <div style="border-left:2px solid #7aa2f7;padding-left:4px;margin-bottom:4px">
+              <div style="color:#bb9af7">user123 · 2h</div>
+              <div style="font-size:10px">Hey everyone, this week's topic is finals prep. Anyone have good resources?</div>
+            </div>
+            <div style="border-left:2px solid #555;padding-left:4px">
+              <div style="color:#bb9af7">devgirl · 1h</div>
+              <div style="font-size:10px">Check the pinned megathread!</div>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #333;margin-top:6px;padding-top:4px;color:#555;font-size:10px">tab switch pane  r reply  / search  n new post</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Three-pane (topic list + reading pane)</h3>
+      <p>Topic list on the left, thread content on the right — always visible together. Tab switches focus. Good for quick scanning across threads.</p>
+    </div>
+  </div>
+
+</div>
