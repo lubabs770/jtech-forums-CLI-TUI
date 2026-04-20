@@ -163,3 +163,51 @@ func TestGetFeed_Returns403(t *testing.T) {
 		t.Errorf("expected ErrUnauthorized, got %T: %v", err, err)
 	}
 }
+
+func TestPostReply(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/posts" || r.Method != http.MethodPost {
+			http.Error(w, "not found", 404)
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{"id": 99})
+	}))
+	defer srv.Close()
+
+	client, _ := api.New(srv.URL, "tok")
+	err := client.PostReply(42, "My reply text")
+	if err != nil {
+		t.Fatalf("PostReply: %v", err)
+	}
+	if gotBody["topic_id"] != float64(42) {
+		t.Errorf("expected topic_id 42, got %v", gotBody["topic_id"])
+	}
+	if gotBody["raw"] != "My reply text" {
+		t.Errorf("expected raw 'My reply text', got %v", gotBody["raw"])
+	}
+}
+
+func TestCreateTopic(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{"id": 100, "topic_id": 55})
+	}))
+	defer srv.Close()
+
+	client, _ := api.New(srv.URL, "tok")
+	err := client.CreateTopic("My new topic", "Body text here", 5)
+	if err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+	if gotBody["title"] != "My new topic" {
+		t.Errorf("expected title, got %v", gotBody["title"])
+	}
+	if gotBody["category"] != float64(5) {
+		t.Errorf("expected category 5, got %v", gotBody["category"])
+	}
+}

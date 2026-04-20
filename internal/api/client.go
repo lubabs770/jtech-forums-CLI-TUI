@@ -118,3 +118,53 @@ func (c *Client) GetThread(id int) (*Thread, error) {
 	}
 	return &t, nil
 }
+
+func (c *Client) post(path string, payload, out any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
+		return &ErrUnauthorized{}
+	}
+	if resp.StatusCode >= 400 {
+		var e struct {
+			Errors []string `json:"errors"`
+		}
+		json.NewDecoder(resp.Body).Decode(&e)
+		if len(e.Errors) > 0 {
+			return fmt.Errorf("post failed: %s", e.Errors[0])
+		}
+		return fmt.Errorf("post failed: status %d", resp.StatusCode)
+	}
+	if out != nil {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
+}
+
+func (c *Client) PostReply(topicID int, raw string) error {
+	return c.post("/posts", map[string]any{
+		"topic_id": topicID,
+		"raw":      raw,
+	}, nil)
+}
+
+func (c *Client) CreateTopic(title, raw string, categoryID int) error {
+	return c.post("/posts", map[string]any{
+		"title":    title,
+		"raw":      raw,
+		"category": categoryID,
+	}, nil)
+}
