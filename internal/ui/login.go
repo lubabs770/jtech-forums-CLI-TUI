@@ -53,7 +53,8 @@ func (l *loginView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return l, nil
 		}
 		switch msg.String() {
-		case "tab", "down":
+		case "tab", "down", "shift+tab", "up":
+			// Two fields — either direction just toggles.
 			l.focused = (l.focused + 1) % 2
 			if l.focused == 0 {
 				l.username.Focus()
