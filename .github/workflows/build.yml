@@ -1,0 +1,48 @@
+name: Build & Release
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build all targets
+        run: |
+          mkdir -p dist
+          targets=(
+            "linux/amd64"
+            "linux/arm64"
+            "linux/arm"
+            "windows/amd64"
+            "windows/arm64"
+          )
+          for target in "${targets[@]}"; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            output="dist/jtech-${os}-${arch}"
+            if [ "$os" = "windows" ]; then
+              output="${output}.exe"
+            fi
+            echo "Building ${os}/${arch}..."
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -o "$output" ./cmd/jtech
+          done
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}-$(echo $GITHUB_SHA | head -c 7)"
+          gh release create "$tag" dist/* \
+            --title "Build ${GITHUB_REF_NAME} (${GITHUB_SHA::7})" \
+            --notes "Auto-build from \`${GITHUB_REF_NAME}\` branch, commit ${GITHUB_SHA::7}" \
+            --latest
