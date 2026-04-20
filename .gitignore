@@ -1,5 +1,5 @@
 # Binaries
-jtech
+/jtech
 *.exe
 *.dll
 *.so
