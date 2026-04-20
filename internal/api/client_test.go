@@ -12,13 +12,20 @@ import (
 
 func TestLogin_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/session" || r.Method != http.MethodPost {
+		switch {
+		case r.URL.Path == "/session/csrf.json":
+			json.NewEncoder(w).Encode(map[string]any{"csrf": "test-csrf-token"})
+		case r.URL.Path == "/session" && r.Method == http.MethodPost:
+			if r.Header.Get("X-CSRF-Token") != "test-csrf-token" {
+				http.Error(w, "missing csrf", 403)
+				return
+			}
+			http.SetCookie(w, &http.Cookie{Name: "_t", Value: "session-token-xyz"})
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]any{"user": map[string]any{"username": "testuser"}})
+		default:
 			http.Error(w, "not found", 404)
-			return
 		}
-		http.SetCookie(w, &http.Cookie{Name: "_t", Value: "session-token-xyz"})
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"user": map[string]any{"username": "testuser"}})
 	}))
 	defer srv.Close()
 

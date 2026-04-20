@@ -35,9 +35,37 @@ func New(baseURL, sessionCookie string) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) csrfToken() (string, error) {
+	resp, err := c.httpClient.Get(c.baseURL + "/session/csrf.json")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Csrf string `json:"csrf"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+	return result.Csrf, nil
+}
+
 func (c *Client) Login(username, password string) (string, error) {
+	csrf, err := c.csrfToken()
+	if err != nil {
+		return "", fmt.Errorf("failed to get CSRF token: %w", err)
+	}
+
 	body, _ := json.Marshal(map[string]string{"login": username, "password": password})
-	resp, err := c.httpClient.Post(c.baseURL+"/session", "application/json", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/session", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", csrf)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
