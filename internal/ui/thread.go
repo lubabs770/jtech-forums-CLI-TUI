@@ -44,7 +44,11 @@ func (v *threadView) Init() tea.Cmd {
 }
 
 func renderPosts(posts []api.Post, width int) string {
-	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(width-4))
+	wrapWidth := width - 4
+	if wrapWidth < 20 {
+		wrapWidth = 80
+	}
+	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(wrapWidth))
 	var sb strings.Builder
 	for _, p := range posts {
 		sb.WriteString(usernameStyle.Render(p.Username))
@@ -57,7 +61,9 @@ func renderPosts(posts []api.Post, width int) string {
 		} else {
 			sb.WriteString(rendered)
 		}
-		sb.WriteString(sepStyle.Render(strings.Repeat("─", width-2)))
+		if width > 2 {
+			sb.WriteString(sepStyle.Render(strings.Repeat("─", width-2)))
+		}
 		sb.WriteString("\n")
 	}
 	return sb.String()
