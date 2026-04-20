@@ -63,17 +63,29 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case openTopicMsg:
 		thread := newThreadView(a.client, msg.topic)
 		a.stack = append(a.stack, thread)
-		return a, thread.Init()
+		cmds := []tea.Cmd{thread.Init()}
+		if a.width > 0 && a.height > 0 {
+			sized, cmd := thread.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+			a.stack[len(a.stack)-1] = sized
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		return a, tea.Batch(cmds...)
 
 	case openCategoryMsg:
 		if msg.cat.ID == 0 {
 			catView := newCategoriesView(a.client)
 			a.stack = append(a.stack, catView)
-			return a, catView.Init()
+			sized, cmd := catView.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+			a.stack[len(a.stack)-1] = sized
+			return a, tea.Batch(catView.Init(), cmd)
 		}
 		catTopics := newCategoriesTopicsView(a.client, msg.cat)
 		a.stack = append(a.stack, catTopics)
-		return a, catTopics.Init()
+		sized, cmd := catTopics.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		a.stack[len(a.stack)-1] = sized
+		return a, tea.Batch(catTopics.Init(), cmd)
 	}
 
 	if len(a.stack) == 0 {
