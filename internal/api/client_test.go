@@ -174,6 +174,10 @@ func TestGetFeed_Returns403(t *testing.T) {
 func TestPostReply(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/csrf.json" {
+			json.NewEncoder(w).Encode(map[string]any{"csrf": "test-csrf"})
+			return
+		}
 		if r.URL.Path != "/posts" || r.Method != http.MethodPost {
 			http.Error(w, "not found", 404)
 			return
@@ -200,6 +204,10 @@ func TestPostReply(t *testing.T) {
 func TestCreateTopic(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/session/csrf.json" {
+			json.NewEncoder(w).Encode(map[string]any{"csrf": "test-csrf"})
+			return
+		}
 		json.NewDecoder(r.Body).Decode(&gotBody)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]any{"id": 100, "topic_id": 55})

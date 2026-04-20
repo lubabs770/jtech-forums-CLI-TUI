@@ -148,6 +148,10 @@ func (c *Client) GetThread(id int) (*Thread, error) {
 }
 
 func (c *Client) post(path string, payload, out any) error {
+	csrf, err := c.csrfToken()
+	if err != nil {
+		return fmt.Errorf("failed to get CSRF token: %w", err)
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -158,6 +162,7 @@ func (c *Client) post(path string, payload, out any) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("X-CSRF-Token", csrf)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
