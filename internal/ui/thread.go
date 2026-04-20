@@ -88,10 +88,12 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		v.width, v.height = msg.Width, msg.Height
-		v.viewport.Width = msg.Width
-		v.viewport.Height = msg.Height - 3
-		if v.thread != nil {
-			v.viewport.SetContent(renderPosts(v.thread.PostStream.Posts, msg.Width))
+		if msg.Height > 3 {
+			v.viewport.Width = msg.Width
+			v.viewport.Height = msg.Height - 3
+			if v.thread != nil {
+				v.viewport.SetContent(renderPosts(v.thread.PostStream.Posts, msg.Width))
+			}
 		}
 
 	case tea.KeyMsg:
@@ -114,8 +116,10 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 		}
 		v.thread = msg.thread
-		v.viewport = viewport.New(v.width, v.height-3)
-		v.viewport.SetContent(renderPosts(msg.thread.PostStream.Posts, v.width))
+		if v.width > 0 && v.height > 3 {
+			v.viewport = viewport.New(v.width, v.height-3)
+			v.viewport.SetContent(renderPosts(msg.thread.PostStream.Posts, v.width))
+		}
 
 	case editorFinishedMsg:
 		if msg.err != nil || strings.TrimSpace(msg.content) == "" {
