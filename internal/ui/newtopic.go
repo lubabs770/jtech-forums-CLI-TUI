@@ -33,7 +33,8 @@ func (f *newTopicForm) Update(msg tea.Msg) (*newTopicForm, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "tab":
+		case "tab", "shift+tab":
+			// Two fields — either direction just toggles.
 			f.focused = (f.focused + 1) % 2
 			if f.focused == 0 {
 				f.title.Focus()
