@@ -26,6 +26,7 @@ type threadView struct {
 	err      string
 	width    int
 	height   int
+	lastKey  string
 }
 
 func newThreadView(client *api.Client, topic api.Topic) *threadView {
@@ -89,22 +90,36 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		v.width, v.height = msg.Width, msg.Height
 		if msg.Height > 3 {
+			wasAtBottom := v.viewport.AtBottom()
 			v.viewport.Width = msg.Width
 			v.viewport.Height = msg.Height - 3
 			if v.thread != nil {
 				v.viewport.SetContent(renderPosts(v.thread.PostStream.Posts, msg.Width))
+				if wasAtBottom {
+					v.viewport.GotoBottom()
+				}
 			}
 		}
 
 	case tea.KeyMsg:
-		switch msg.String() {
+		key := msg.String()
+		switch key {
 		case "h":
+			v.lastKey = ""
 			return v, func() tea.Msg { return popViewMsg{} }
 		case "r":
+			v.lastKey = ""
 			if v.thread != nil {
 				return v, openEditor("")
 			}
+		case "g":
+			if v.lastKey == "g" {
+				v.viewport.GotoTop()
+				v.lastKey = ""
+				return v, nil
+			}
 		}
+		v.lastKey = key
 
 	case threadLoadedMsg:
 		v.loading = false
@@ -119,6 +134,7 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if v.width > 0 && v.height > 3 {
 			v.viewport = viewport.New(v.width, v.height-3)
 			v.viewport.SetContent(renderPosts(msg.thread.PostStream.Posts, v.width))
+			v.viewport.GotoBottom()
 		}
 
 	case editorFinishedMsg:
