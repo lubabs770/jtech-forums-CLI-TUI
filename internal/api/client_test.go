@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/sam/jtech-tui/internal/api"
@@ -138,20 +139,51 @@ func TestGetCategories(t *testing.T) {
 }
 
 func TestGetThread(t *testing.T) {
+	var requestedPostIDs []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/t/42.json" {
-			http.Error(w, "not found", 404)
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]any{
-			"id":    42,
-			"title": "Test thread",
-			"post_stream": map[string]any{
-				"posts": []map[string]any{
-					{"id": 1, "post_number": 1, "username": "alice", "raw": "Hello world", "created_at": "2026-01-01"},
+		switch r.URL.Path {
+		case "/t/42/last.json":
+			stream := make([]int, 35)
+			for i := range stream {
+				stream[i] = i + 1
+			}
+			lastPosts := make([]map[string]any, 0, 20)
+			for i := 16; i <= 35; i++ {
+				lastPosts = append(lastPosts, map[string]any{
+					"id":          i,
+					"post_number": i,
+					"username":    "alice",
+					"raw":         "Hello world",
+					"created_at":  "2026-01-01",
+				})
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"id":    42,
+				"title": "Test thread",
+				"post_stream": map[string]any{
+					"stream": stream,
+					"posts":  lastPosts,
 				},
-			},
-		})
+			})
+		case "/t/42/posts.json":
+			requestedPostIDs = append([]string(nil), r.URL.Query()["post_ids[]"]...)
+			posts := make([]map[string]any, 0, len(requestedPostIDs))
+			for _, id := range requestedPostIDs {
+				n, _ := strconv.Atoi(id)
+				posts = append(posts, map[string]any{
+					"id":          n,
+					"post_number": n,
+					"username":    "alice",
+					"raw":         "Hello world",
+					"created_at":  "2026-01-01",
+				})
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"post_stream": map[string]any{"posts": posts},
+			})
+		default:
+			http.Error(w, "not found", 404)
+		}
 	}))
 	defer srv.Close()
 
@@ -163,8 +195,54 @@ func TestGetThread(t *testing.T) {
 	if thread.Title != "Test thread" {
 		t.Errorf("unexpected title: %q", thread.Title)
 	}
-	if len(thread.PostStream.Posts) != 1 || thread.PostStream.Posts[0].Username != "alice" {
+	if len(thread.PostStream.Posts) != 30 || thread.PostStream.Posts[0].PostNumber != 6 || thread.PostStream.Posts[29].PostNumber != 35 {
 		t.Errorf("unexpected posts: %+v", thread.PostStream.Posts)
+	}
+	if len(requestedPostIDs) != 10 || requestedPostIDs[0] != "6" || requestedPostIDs[9] != "15" {
+		t.Errorf("expected previous 10 post ids, got %v", requestedPostIDs)
+	}
+}
+
+func TestGetThreadPosts(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/t/42/posts.json" {
+			http.Error(w, "not found", 404)
+			return
+		}
+		got := r.URL.Query()["post_ids[]"]
+		want := []string{"91", "92", "93"}
+		if len(got) != len(want) {
+			t.Fatalf("expected %d ids, got %v", len(want), got)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("expected post_ids %v, got %v", want, got)
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"post_stream": map[string]any{
+				"posts": []map[string]any{
+					{"id": 93, "post_number": 93, "username": "carol", "raw": "third", "created_at": "2026-01-03"},
+					{"id": 91, "post_number": 91, "username": "alice", "raw": "first", "created_at": "2026-01-01"},
+					{"id": 92, "post_number": 92, "username": "bob", "raw": "second", "created_at": "2026-01-02"},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client, _ := api.New(srv.URL, "tok")
+	posts, err := client.GetThreadPosts(42, []int{91, 92, 93})
+	if err != nil {
+		t.Fatalf("GetThreadPosts: %v", err)
+	}
+	if len(posts) != 3 {
+		t.Fatalf("expected 3 posts, got %d", len(posts))
+	}
+	for i, want := range []int{91, 92, 93} {
+		if posts[i].PostNumber != want {
+			t.Fatalf("expected posts sorted by post number, got %+v", posts)
+		}
 	}
 }
 
