@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build release archives
+        run: |
+          mkdir -p dist
+          targets=(
+            "linux/amd64"
+            "linux/arm64"
+            "darwin/amd64"
+            "darwin/arm64"
+            "windows/amd64"
+            "windows/arm64"
+          )
+          for target in "${targets[@]}"; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            stagedir="dist/${os}-${arch}"
+            mkdir -p "$stagedir"
+            bin="jtechforums"
+            if [ "$os" = "windows" ]; then
+              bin="${bin}.exe"
+            fi
+            echo "Building ${os}/${arch}..."
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -o "${stagedir}/${bin}" ./cmd/jtech
+            tar -C "$stagedir" -czf "dist/jtechforums-${os}-${arch}.tar.gz" "$bin"
+            rm -rf "$stagedir"
+          done
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/*.tar.gz \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Release ${GITHUB_REF_NAME}"
