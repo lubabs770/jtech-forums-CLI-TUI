@@ -25,6 +25,20 @@ in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - Developer mode with restart-friendly UI resume via `--dev`
 
 ## Install
+Curl installer:
+
+```sh
+curl -fsSL https://cli.jtechforums.org/install.sh | sh
+jtechforums
+```
+
+Optional:
+
+- install to a different directory:
+  `curl -fsSL https://cli.jtechforums.org/install.sh | JTECHFORUMS_INSTALL_DIR=/usr/local/bin sh`
+- install a specific release:
+  `curl -fsSL https://cli.jtechforums.org/install.sh | JTECHFORUMS_VERSION=v0.1.0 sh`
+
 Global install via npm:
 
 ```sh
@@ -127,6 +141,7 @@ Notes:
 - the package downloads release binaries from `lubabs770/jtech-forums-CLI-TUI`
 - if you ever move releases elsewhere, update `package.json` field `jtechforums.releaseRepo`
 - users need `npm install -g jtechforums` for a globally available `jtechforums` command
+- the curl installer downloads the same GitHub release assets via `install.sh`
 
 Project layout:
 
