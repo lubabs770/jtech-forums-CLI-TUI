@@ -16,12 +16,15 @@ import (
 
 var feeds = []string{"latest", "new", "top", "unseen", "categories"}
 
-type topicItem struct{ topic api.Topic }
+type topicItem struct {
+	topic      api.Topic
+	categories map[int]api.Category
+}
 
 func (t topicItem) FilterValue() string { return t.topic.Title }
 func (t topicItem) Title() string       { return t.topic.Title }
 func (t topicItem) Description() string {
-	return fmt.Sprintf("%d replies • %s", t.topic.ReplyCount, formatTime(t.topic.LastPostedAt))
+	return topicMetaLine(t.topic, t.categories)
 }
 
 type feedLoadedMsg struct {
@@ -40,10 +43,13 @@ type feedView struct {
 	err               string
 	width             int
 	height            int
+	topics            []api.Topic
 	form              *newTopicForm
 	categories        []api.Category
+	categoryByID      map[int]api.Category
 	pendingTitle      string
 	pendingCategoryID int
+	restoreIndex      int
 }
 
 func newFeedView(client *api.Client, defaultFeed string) *feedView {
@@ -62,7 +68,7 @@ func newFeedView(client *api.Client, defaultFeed string) *feedView {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 
-	return &feedView{client: client, feedIndex: idx, list: l, spinner: sp}
+	return &feedView{client: client, feedIndex: idx, list: l, spinner: sp, restoreIndex: -1}
 }
 
 func (f *feedView) currentFeed() string { return feeds[f.feedIndex] }
@@ -81,7 +87,15 @@ func (f *feedView) loadFeed() tea.Cmd {
 
 func (f *feedView) Init() tea.Cmd {
 	f.loading = true
-	return tea.Batch(f.spinner.Tick, f.loadFeed())
+	return tea.Batch(f.spinner.Tick, f.loadFeed(), f.loadCategories())
+}
+
+func (f *feedView) loadCategories() tea.Cmd {
+	client := f.client
+	return func() tea.Msg {
+		cats, err := client.GetCategories()
+		return catsForFormMsg{cats: cats, err: err}
+	}
 }
 
 func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -141,7 +155,12 @@ func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return f, tea.Batch(f.spinner.Tick, f.loadFeed())
 		case "enter":
 			if item, ok := f.list.SelectedItem().(topicItem); ok {
-				return f, func() tea.Msg { return openTopicMsg{topic: item.topic} }
+				var cat *api.Category
+				if found, ok := f.categoryByID[item.topic.CategoryID]; ok {
+					catCopy := found
+					cat = &catCopy
+				}
+				return f, func() tea.Msg { return openTopicMsg{topic: item.topic, category: cat, feedIndex: f.feedIndex} }
 			}
 		case "n":
 			if len(f.categories) == 0 {
@@ -164,11 +183,8 @@ func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			f.err = msg.err.Error()
 			return f, nil
 		}
-		items := make([]list.Item, len(msg.topics))
-		for i, t := range msg.topics {
-			items[i] = topicItem{topic: t}
-		}
-		f.list.SetItems(items)
+		f.topics = msg.topics
+		f.rebuildItems()
 
 	case openCategoryListMsg:
 		return f, func() tea.Msg { return openCategoryMsg{} }
@@ -176,6 +192,13 @@ func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case catsForFormMsg:
 		if msg.err == nil {
 			f.categories = msg.cats
+			f.categoryByID = categoryMap(msg.cats)
+			if len(f.topics) > 0 {
+				f.rebuildItems()
+			}
+			if f.form == nil {
+				return f, nil
+			}
 			f.form = newNewTopicForm(f.categories)
 		}
 		return f, textinput.Blink
@@ -228,15 +251,7 @@ func (f *feedView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f *feedView) baseView() string {
-	var tabs []string
-	for i, feed := range feeds {
-		if i == f.feedIndex {
-			tabs = append(tabs, activeTabStyle.Render(feed))
-		} else {
-			tabs = append(tabs, tabStyle.Render(feed))
-		}
-	}
-	header := strings.Join(tabs, "")
+	header := renderFeedTabs(f.feedIndex)
 
 	if f.loading {
 		return header + "\n\n" + f.spinner.View() + " Loading..."
@@ -245,6 +260,66 @@ func (f *feedView) baseView() string {
 		return header + "\n\n" + errStyle.Render(f.err)
 	}
 	return header + "\n" + f.list.View() + "\n" + helpStyle.Render("enter open • n new topic • tab/shift+tab switch feed • h back")
+}
+
+func renderFeedTabs(activeIndex int) string {
+	var tabs []string
+	for i, feed := range feeds {
+		if i == activeIndex {
+			tabs = append(tabs, activeTabStyle.Render(feed))
+		} else {
+			tabs = append(tabs, tabStyle.Render(feed))
+		}
+	}
+	return tabsBarStyle.Render(strings.Join(tabs, "  "))
+}
+
+func topicMetaLine(topic api.Topic, categories map[int]api.Category) string {
+	parts := []string{messageStyle.Render(fmt.Sprintf("💬 %d", topic.ReplyCount))}
+	if categories != nil {
+		if cat, ok := categories[topic.CategoryID]; ok {
+			parts = append(parts, categoryBadge(cat))
+		}
+	}
+	parts = append(parts, metaStyle.Render(formatTime(topic.LastPostedAt)))
+	return lipgloss.JoinHorizontal(lipgloss.Left, joinWithSeparator(parts)...)
+}
+
+func (f *feedView) rebuildItems() {
+	items := make([]list.Item, len(f.topics))
+	for i, t := range f.topics {
+		items[i] = topicItem{topic: t, categories: f.categoryByID}
+	}
+	index := f.list.Index()
+	if f.restoreIndex >= 0 {
+		index = f.restoreIndex
+	}
+	f.list.SetItems(items)
+	if len(items) == 0 {
+		return
+	}
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(items) {
+		index = len(items) - 1
+	}
+	f.list.Select(index)
+	f.restoreIndex = -1
+}
+
+func (f *feedView) restoreSelection(index int) {
+	f.restoreIndex = index
+}
+
+func (f *feedView) debugStatus() string {
+	if f.loading {
+		return "loading"
+	}
+	if f.err != "" {
+		return "error: " + f.err
+	}
+	return fmt.Sprintf("ready:%d", len(f.topics))
 }
 
 func (f *feedView) View() string {

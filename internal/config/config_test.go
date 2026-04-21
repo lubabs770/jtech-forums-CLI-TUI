@@ -70,3 +70,58 @@ func TestConfigPath(t *testing.T) {
 		t.Errorf("config file not found at expected path: %s", expectedPath)
 	}
 }
+
+func TestSaveAndLoadUIState(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	original := &config.UIState{
+		View:              "thread",
+		ThreadSource:      "feed",
+		Feed:              "latest",
+		FeedIndex:         2,
+		TopicID:           42,
+		TopicTitle:        "Restored topic",
+		ThreadYOffset:     7,
+		CategoryID:        5,
+		CategorySlug:      "general",
+		CategoryName:      "General",
+		CategoryColor:     "00B3FF",
+		CategoryTextColor: "000000",
+	}
+
+	if err := config.SaveUIState(original); err != nil {
+		t.Fatalf("SaveUIState() returned error: %v", err)
+	}
+
+	loaded, err := config.LoadUIState()
+	if err != nil {
+		t.Fatalf("LoadUIState() returned error: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("LoadUIState() returned nil state")
+	}
+	if loaded.View != original.View || loaded.TopicID != original.TopicID || loaded.ThreadYOffset != original.ThreadYOffset {
+		t.Errorf("loaded UI state mismatch: got %+v want %+v", loaded, original)
+	}
+}
+
+func TestClearUIState(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+
+	if err := config.SaveUIState(&config.UIState{View: "feed"}); err != nil {
+		t.Fatalf("SaveUIState() returned error: %v", err)
+	}
+	if err := config.ClearUIState(); err != nil {
+		t.Fatalf("ClearUIState() returned error: %v", err)
+	}
+
+	loaded, err := config.LoadUIState()
+	if err != nil {
+		t.Fatalf("LoadUIState() returned error: %v", err)
+	}
+	if loaded != nil {
+		t.Errorf("expected nil UI state after clear, got %+v", loaded)
+	}
+}

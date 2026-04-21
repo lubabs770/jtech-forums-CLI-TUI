@@ -1,0 +1,35 @@
+{
+  "name": "jtechforums",
+  "version": "0.1.0",
+  "description": "Terminal UI for browsing and posting on JTech Forums",
+  "bin": {
+    "jtechforums": "./bin/jtechforums.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "postinstall": "node ./scripts/install.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lubabs770/jtech-forums-CLI-TUI.git"
+  },
+  "keywords": [
+    "cli",
+    "tui",
+    "go",
+    "discourse",
+    "forum"
+  ],
+  "author": "TripleU",
+  "dependencies": {
+    "tar": "^7.4.3"
+  },
+  "jtechforums": {
+    "releaseRepo": "lubabs770/jtech-forums-CLI-TUI"
+  }
+}

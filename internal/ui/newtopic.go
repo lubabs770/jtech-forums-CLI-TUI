@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -73,10 +72,14 @@ func (f *newTopicForm) View() string {
 	sb.WriteString(f.title.View() + "\n\n")
 	sb.WriteString("Category:\n")
 	for i, c := range f.categories {
+		line := categoryBadge(c)
+		if line == "" {
+			line = c.Name
+		}
 		if i == f.catIndex && f.focused == 1 {
-			sb.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("69")).Render("▶ "+c.Name) + "\n")
+			sb.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("69")).Render("▶ ") + line + "\n")
 		} else {
-			sb.WriteString(fmt.Sprintf("  %s\n", c.Name))
+			sb.WriteString("  " + line + "\n")
 		}
 	}
 	sb.WriteString("\n" + helpStyle.Render("tab switch • j/k navigate category • enter confirm • esc cancel"))
