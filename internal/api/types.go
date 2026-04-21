@@ -12,11 +12,17 @@ type Topic struct {
 }
 
 type Category struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	TopicCount  int    `json:"topic_count"`
-	Description string `json:"description"`
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	Slug             string `json:"slug"`
+	TopicCount       int    `json:"topic_count"`
+	Description      string `json:"description"`
+	Color            string `json:"color"`
+	TextColor        string `json:"text_color"`
+	StyleType        string `json:"style_type"`
+	Icon             string `json:"icon"`
+	Emoji            string `json:"emoji"`
+	ParentCategoryID int    `json:"parent_category_id"`
 }
 
 type Post struct {

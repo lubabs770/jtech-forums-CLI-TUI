@@ -14,8 +14,8 @@ import (
 type catItem struct{ cat api.Category }
 
 func (c catItem) FilterValue() string { return c.cat.Name }
-func (c catItem) Title() string       { return c.cat.Name }
-func (c catItem) Description() string { return fmt.Sprintf("%d topics", c.cat.TopicCount) }
+func (c catItem) Title() string       { return categoryBadge(c.cat) }
+func (c catItem) Description() string { return categoryDescription(c.cat) }
 
 type catsLoadedMsg struct {
 	cats []api.Category
@@ -23,13 +23,15 @@ type catsLoadedMsg struct {
 }
 
 type categoriesView struct {
-	client  *api.Client
-	list    list.Model
-	spinner spinner.Model
-	loading bool
-	err     string
-	width   int
-	height  int
+	client       *api.Client
+	list         list.Model
+	spinner      spinner.Model
+	categoryByID map[int]api.Category
+	loading      bool
+	err          string
+	width        int
+	height       int
+	restoreIndex int
 }
 
 func newCategoriesView(client *api.Client) *categoriesView {
@@ -39,7 +41,7 @@ func newCategoriesView(client *api.Client) *categoriesView {
 	l.DisableQuitKeybindings()
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	return &categoriesView{client: client, list: l, spinner: sp}
+	return &categoriesView{client: client, list: l, spinner: sp, restoreIndex: -1}
 }
 
 func (v *categoriesView) Init() tea.Cmd {
@@ -55,7 +57,7 @@ func (v *categoriesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		v.width, v.height = msg.Width, msg.Height
-		v.list.SetSize(msg.Width, msg.Height-2)
+		v.list.SetSize(msg.Width, msg.Height-5)
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -63,7 +65,12 @@ func (v *categoriesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, func() tea.Msg { return popViewMsg{} }
 		case "enter":
 			if item, ok := v.list.SelectedItem().(catItem); ok {
-				return v, func() tea.Msg { return openCategoryMsg{cat: item.cat} }
+				var parent *api.Category
+				if found, ok := v.categoryByID[item.cat.ParentCategoryID]; ok {
+					parentCopy := found
+					parent = &parentCopy
+				}
+				return v, func() tea.Msg { return openCategoryMsg{cat: item.cat, parent: parent} }
 			}
 		}
 
@@ -77,10 +84,22 @@ func (v *categoriesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 		}
 		items := make([]list.Item, len(msg.cats))
+		v.categoryByID = categoryMap(msg.cats)
 		for i, c := range msg.cats {
 			items[i] = catItem{cat: c}
 		}
 		v.list.SetItems(items)
+		if len(items) > 0 {
+			index := v.restoreIndex
+			if index < 0 {
+				index = 0
+			}
+			if index >= len(items) {
+				index = len(items) - 1
+			}
+			v.list.Select(index)
+		}
+		v.restoreIndex = -1
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -94,7 +113,7 @@ func (v *categoriesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (v *categoriesView) View() string {
-	header := titleStyle.Render("Categories")
+	header := renderFeedTabs(len(feeds) - 1)
 	if v.loading {
 		return header + "\n\n" + v.spinner.View() + " Loading..."
 	}
@@ -102,6 +121,20 @@ func (v *categoriesView) View() string {
 		return header + "\n\n" + errStyle.Render(v.err)
 	}
 	return header + "\n" + v.list.View() + "\n" + helpStyle.Render("enter open • h back")
+}
+
+func (v *categoriesView) restoreSelection(index int) {
+	v.restoreIndex = index
+}
+
+func (v *categoriesView) debugStatus() string {
+	if v.loading {
+		return "loading"
+	}
+	if v.err != "" {
+		return "error: " + v.err
+	}
+	return fmt.Sprintf("ready:%d", len(v.list.Items()))
 }
 
 // --- Category topics view ---
@@ -112,24 +145,26 @@ type catTopicsLoadedMsg struct {
 }
 
 type categoryTopicsView struct {
-	client  *api.Client
-	cat     api.Category
-	list    list.Model
-	spinner spinner.Model
-	loading bool
-	err     string
-	width   int
-	height  int
+	client       *api.Client
+	cat          api.Category
+	parent       *api.Category
+	list         list.Model
+	spinner      spinner.Model
+	loading      bool
+	err          string
+	width        int
+	height       int
+	restoreIndex int
 }
 
-func newCategoriesTopicsView(client *api.Client, cat api.Category) *categoryTopicsView {
+func newCategoriesTopicsView(client *api.Client, cat api.Category, parent *api.Category) *categoryTopicsView {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
 	l.DisableQuitKeybindings()
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	return &categoryTopicsView{client: client, cat: cat, list: l, spinner: sp}
+	return &categoryTopicsView{client: client, cat: cat, parent: parent, list: l, spinner: sp, restoreIndex: -1}
 }
 
 func (v *categoryTopicsView) Init() tea.Cmd {
@@ -145,7 +180,7 @@ func (v *categoryTopicsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		v.width, v.height = msg.Width, msg.Height
-		v.list.SetSize(msg.Width, msg.Height-2)
+		v.list.SetSize(msg.Width, msg.Height-5)
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -153,7 +188,10 @@ func (v *categoryTopicsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, func() tea.Msg { return popViewMsg{} }
 		case "enter":
 			if item, ok := v.list.SelectedItem().(topicItem); ok {
-				return v, func() tea.Msg { return openTopicMsg{topic: item.topic} }
+				catCopy := v.cat
+				return v, func() tea.Msg {
+					return openTopicMsg{topic: item.topic, category: &catCopy, parent: v.parent, feedIndex: len(feeds) - 1}
+				}
 			}
 		}
 
@@ -168,9 +206,23 @@ func (v *categoryTopicsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		items := make([]list.Item, len(msg.topics))
 		for i, t := range msg.topics {
-			items[i] = topicItem{topic: t}
+			items[i] = topicItem{
+				topic:      t,
+				categories: map[int]api.Category{v.cat.ID: v.cat},
+			}
 		}
 		v.list.SetItems(items)
+		if len(items) > 0 {
+			index := v.restoreIndex
+			if index < 0 {
+				index = 0
+			}
+			if index >= len(items) {
+				index = len(items) - 1
+			}
+			v.list.Select(index)
+		}
+		v.restoreIndex = -1
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -184,12 +236,26 @@ func (v *categoryTopicsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (v *categoryTopicsView) View() string {
-	header := titleStyle.Render(v.cat.Name)
+	header := renderFeedTabs(len(feeds)-1) + "\n" + categorySectionHeaderWithParent(v.parent, v.cat)
 	if v.loading {
-		return header + "\n\n" + v.spinner.View() + " Loading..."
+		return header + "\n" + v.spinner.View() + " Loading..."
 	}
 	if v.err != "" {
-		return header + "\n\n" + errStyle.Render(v.err)
+		return header + "\n" + errStyle.Render(v.err)
 	}
 	return header + "\n" + v.list.View() + "\n" + helpStyle.Render("enter open • h back")
+}
+
+func (v *categoryTopicsView) restoreSelection(index int) {
+	v.restoreIndex = index
+}
+
+func (v *categoryTopicsView) debugStatus() string {
+	if v.loading {
+		return "loading"
+	}
+	if v.err != "" {
+		return "error: " + v.err
+	}
+	return fmt.Sprintf("ready:%d", len(v.list.Items()))
 }

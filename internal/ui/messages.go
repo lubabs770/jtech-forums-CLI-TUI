@@ -5,8 +5,16 @@ import "github.com/sam/jtech-tui/internal/api"
 type loggedInMsg struct{ cookie string }
 type popViewMsg struct{}
 type unauthorizedMsg struct{}
-type openTopicMsg struct{ topic api.Topic }
-type openCategoryMsg struct{ cat api.Category }
+type openTopicMsg struct {
+	topic     api.Topic
+	category  *api.Category
+	parent    *api.Category
+	feedIndex int
+}
+type openCategoryMsg struct {
+	cat    api.Category
+	parent *api.Category
+}
 type editorFinishedMsg struct {
 	content string
 	err     error

@@ -22,6 +22,7 @@ in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - Open a thread, read posts rendered with [Glamour](https://github.com/charmbracelet/glamour)
   Markdown, and reply using your `$EDITOR`
 - Create new topics in any category
+- Developer mode with restart-friendly UI resume via `--dev`
 
 ## Install
 ...
@@ -29,8 +30,15 @@ in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 ## Configuration
 
 On first run you'll be prompted to log in. Config lives at
-`~/.config/jtech/config.json` and stores the base URL, default feed, and
-session cookie.
+`~/.config/jtech-tui/config.json` and stores the base URL, default feed, and
+session cookie. Developer mode stores resumable UI state at
+`~/.config/jtech-tui/ui-state.json`.
+
+## Runtime Flags
+
+- `--feed <name>`: start on `latest`, `new`, `top`, `unseen`, or `categories`
+- `--dev`: enable developer mode, UI-state resume, and a debug status footer
+- `--no-alt-screen`: run without the terminal alternate screen
 
 ## Keybindings
 
@@ -64,6 +72,7 @@ session cookie.
 ```sh
 go test ./...
 go build ./...
+go run ./cmd/jtech --dev
 ```
 
 Project layout:

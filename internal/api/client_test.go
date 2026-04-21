@@ -106,7 +106,18 @@ func TestGetCategories(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"category_list": map[string]any{
 				"categories": []map[string]any{
-					{"id": 5, "name": "General", "slug": "general", "topic_count": 10},
+					{
+						"id":                 5,
+						"name":               "General",
+						"slug":               "general",
+						"topic_count":        10,
+						"color":              "00b3ff",
+						"text_color":         "000000",
+						"style_type":         "icon",
+						"icon":               "star-half-stroke",
+						"emoji":              "telephone_receiver",
+						"parent_category_id": 4,
+					},
 				},
 			},
 		})
@@ -120,6 +131,9 @@ func TestGetCategories(t *testing.T) {
 	}
 	if len(cats) != 1 || cats[0].Name != "General" {
 		t.Errorf("unexpected categories: %+v", cats)
+	}
+	if cats[0].Color != "00b3ff" || cats[0].TextColor != "000000" || cats[0].Icon != "star-half-stroke" || cats[0].Emoji != "telephone_receiver" || cats[0].ParentCategoryID != 4 {
+		t.Errorf("expected category presentation fields to decode, got %+v", cats[0])
 	}
 }
 
