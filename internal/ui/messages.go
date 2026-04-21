@@ -25,3 +25,8 @@ type catsForFormMsg struct {
 }
 type newTopicErrMsg struct{ err error }
 type replyErrMsg struct{ err error }
+type olderPostsLoadedMsg struct {
+	start int
+	posts []api.Post
+	err   error
+}

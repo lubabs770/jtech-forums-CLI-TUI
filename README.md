@@ -25,7 +25,38 @@ in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
 - Developer mode with restart-friendly UI resume via `--dev`
 
 ## Install
-...
+Curl installer:
+
+```sh
+curl -fsSL https://cli.jtechforums.org/install.sh | sh
+jtechforums
+```
+
+Optional:
+
+- install to a different directory:
+  `curl -fsSL https://cli.jtechforums.org/install.sh | JTECHFORUMS_INSTALL_DIR=/usr/local/bin sh`
+- install a specific release:
+  `curl -fsSL https://cli.jtechforums.org/install.sh | JTECHFORUMS_VERSION=v0.1.0 sh`
+
+Global install via npm:
+
+```sh
+npm install -g jtechforums
+jtechforums
+```
+
+Local one-off run:
+
+```sh
+npx jtechforums
+```
+
+How this works:
+
+- the npm package installs a small launcher
+- during `postinstall`, it downloads the matching prebuilt Go binary from the GitHub release for the package version
+- the `jtechforums` command then runs that bundled binary
 
 ## Configuration
 
@@ -74,6 +105,43 @@ go test ./...
 go build ./...
 go run ./cmd/jtech --dev
 ```
+
+## Publishing npm Releases
+
+The npm package expects GitHub release assets named like:
+
+- `jtechforums-linux-amd64.tar.gz`
+- `jtechforums-linux-arm64.tar.gz`
+- `jtechforums-darwin-amd64.tar.gz`
+- `jtechforums-darwin-arm64.tar.gz`
+- `jtechforums-windows-amd64.tar.gz`
+- `jtechforums-windows-arm64.tar.gz`
+
+Release flow:
+
+1. Bump `package.json` to the version you want to publish.
+2. Commit the version bump.
+3. Create a matching Git tag, for example `v0.1.0`.
+4. Push the branch and tag:
+
+```sh
+git push origin <branch>
+git push origin v0.1.0
+```
+
+5. The GitHub Actions `Release` workflow will build the platform archives and attach them to the tag release.
+6. Publish the npm package:
+
+```sh
+npm publish
+```
+
+Notes:
+
+- the package downloads release binaries from `lubabs770/jtech-forums-CLI-TUI`
+- if you ever move releases elsewhere, update `package.json` field `jtechforums.releaseRepo`
+- users need `npm install -g jtechforums` for a globally available `jtechforums` command
+- the curl installer downloads the same GitHub release assets via `install.sh`
 
 Project layout:
 

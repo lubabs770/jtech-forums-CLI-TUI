@@ -17,6 +17,22 @@ var (
 	contextSepStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Padding(0, 1)
 	titleChipStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("111")).Padding(0, 1)
 	metaChipStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Padding(0, 1)
-	panelStyle      = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238")).Padding(0, 1)
-	overlayStyle    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2).Width(60)
+	threadCardStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("238")).
+			Padding(0, 1).
+			MarginBottom(1)
+	threadCardHeaderStyle = lipgloss.NewStyle()
+	threadAuthorStyle     = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("255")).
+				Background(lipgloss.Color("62")).
+				Padding(0, 1)
+	threadPostNumberStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("245")).
+				Padding(0, 1)
+	threadTimestampStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
+	threadBodyStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	panelStyle           = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238")).Padding(0, 1)
+	overlayStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 2).Width(60)
 )

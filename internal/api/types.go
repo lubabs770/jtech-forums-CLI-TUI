@@ -38,7 +38,8 @@ type Thread struct {
 	ID         int    `json:"id"`
 	Title      string `json:"title"`
 	PostStream struct {
-		Posts []Post `json:"posts"`
+		Posts  []Post `json:"posts"`
+		Stream []int  `json:"stream"`
 	} `json:"post_stream"`
 }
 

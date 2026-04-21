@@ -7,7 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/sam/jtech-tui/internal/api"
 )
 
@@ -33,6 +34,7 @@ type threadView struct {
 	height         int
 	lastKey        string
 	restoreYOffset int
+	loadingOlder   bool
 }
 
 const threadPageSize = 30
@@ -54,29 +56,73 @@ func (v *threadView) Init() tea.Cmd {
 }
 
 func renderPosts(posts []api.Post, width int) string {
-	wrapWidth := width - 4
-	if wrapWidth < 20 {
-		wrapWidth = 80
-	}
-	r, _ := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(wrapWidth))
 	var sb strings.Builder
 	for _, p := range posts {
-		sb.WriteString(usernameStyle.Render(p.Username))
-		sb.WriteString("  ")
-		sb.WriteString(sepStyle.Render(formatTime(p.CreatedAt)))
-		sb.WriteString("\n")
-		rendered, err := r.Render(p.Raw)
-		if err != nil || strings.TrimSpace(rendered) == "" {
-			sb.WriteString(stripHTML(p.Cooked))
-		} else {
-			sb.WriteString(rendered)
+		if sb.Len() > 0 {
+			sb.WriteString("\n")
 		}
-		if width > 2 {
-			sb.WriteString(sepStyle.Render(strings.Repeat("─", width-2)))
-		}
-		sb.WriteString("\n")
+		sb.WriteString(renderPostCard(p, width))
 	}
 	return sb.String()
+}
+
+func renderPostCard(post api.Post, width int) string {
+	cardWidth := width
+	if cardWidth < 32 {
+		cardWidth = 32
+	}
+	innerWidth := cardWidth - threadCardStyle.GetHorizontalFrameSize()
+	if innerWidth < 24 {
+		innerWidth = 24
+	}
+
+	bodyWidth := innerWidth
+	if bodyWidth > 100 {
+		bodyWidth = 100
+	}
+
+	body := strings.TrimSpace(post.Raw)
+	if body == "" {
+		body = strings.TrimSpace(stripHTML(post.Cooked))
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		body = "(empty post)"
+	}
+	body = wrapPostText(body, bodyWidth)
+
+	meta := lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		threadAuthorStyle.Render(post.Username),
+		" ",
+		threadPostNumberStyle.Render(fmt.Sprintf("#%d", post.PostNumber)),
+		" ",
+		threadTimestampStyle.Render(formatTime(post.CreatedAt)),
+	)
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		threadCardHeaderStyle.Render(meta),
+		threadBodyStyle.Width(innerWidth).Render(body),
+	)
+
+	return threadCardStyle.Render(content)
+}
+
+func wrapPostText(body string, width int) string {
+	if width < 12 {
+		return body
+	}
+	lines := strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n")
+	wrapped := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			wrapped = append(wrapped, "")
+			continue
+		}
+		wrapped = append(wrapped, wordwrap.String(line, width))
+	}
+	return strings.Join(wrapped, "\n")
 }
 
 func stripHTML(s string) string {
@@ -140,8 +186,8 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 		}
 		v.thread = msg.thread
-		v.loadedStart = initialThreadStart(msg.thread.PostStream.Posts)
-		v.visiblePosts = visibleThreadPosts(msg.thread.PostStream.Posts, v.loadedStart)
+		v.loadedStart = initialThreadStart(msg.thread.PostStream.Stream, msg.thread.PostStream.Posts)
+		v.visiblePosts = append([]api.Post(nil), msg.thread.PostStream.Posts...)
 		if v.width > 0 && v.height > 3 {
 			v.viewport = viewport.New(v.width, v.height-3)
 			v.viewport.SetContent(renderPosts(v.visiblePosts, v.width))
@@ -175,6 +221,31 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case replyErrMsg:
 		v.err = msg.err.Error()
 
+	case olderPostsLoadedMsg:
+		v.loadingOlder = false
+		if msg.err != nil {
+			if isUnauthorized(msg.err) {
+				return v, func() tea.Msg { return unauthorizedMsg{} }
+			}
+			v.err = msg.err.Error()
+			return v, nil
+		}
+		if len(msg.posts) == 0 {
+			return v, nil
+		}
+
+		oldContent := renderPosts(v.visiblePosts, v.width)
+		oldLines := renderedLineCount(oldContent)
+
+		v.loadedStart = msg.start
+		v.visiblePosts = append(msg.posts, v.visiblePosts...)
+
+		newContent := renderPosts(v.visiblePosts, v.width)
+		newLines := renderedLineCount(newContent)
+
+		v.viewport.SetContent(newContent)
+		v.viewport.SetYOffset(v.viewport.YOffset + (newLines - oldLines))
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		v.spinner, cmd = v.spinner.Update(msg)
@@ -183,8 +254,7 @@ func (v *threadView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	v.viewport, cmd = v.viewport.Update(msg)
-	v.maybeLoadOlderPosts()
-	return v, cmd
+	return v, tea.Batch(cmd, v.maybeLoadOlderPosts())
 }
 
 func (v *threadView) View() string {
@@ -205,6 +275,9 @@ func (v *threadView) View() string {
 		return header + "\n\n" + errStyle.Render(v.err) + "\n\n" + v.viewport.View()
 	}
 	footer := helpStyle.Render(fmt.Sprintf("j/k scroll • r reply • h back  %d%%", int(v.viewport.ScrollPercent()*100)))
+	if v.loadingOlder {
+		footer = helpStyle.Render(fmt.Sprintf("j/k scroll • r reply • h back • loading older  %d%%", int(v.viewport.ScrollPercent()*100)))
+	}
 	return header + "\n" + v.viewport.View() + "\n" + footer
 }
 
@@ -225,26 +298,16 @@ func (v *threadView) debugStatus() string {
 	return fmt.Sprintf("ready:posts=%d", len(v.thread.PostStream.Posts))
 }
 
-func initialThreadStart(posts []api.Post) int {
-	if len(posts) <= threadPageSize {
+func initialThreadStart(stream []int, posts []api.Post) int {
+	if len(stream) == 0 || len(posts) == 0 || len(stream) <= len(posts) {
 		return 0
 	}
-	return len(posts) - threadPageSize
+	return len(stream) - len(posts)
 }
 
-func visibleThreadPosts(posts []api.Post, start int) []api.Post {
-	if start < 0 {
-		start = 0
-	}
-	if start > len(posts) {
-		start = len(posts)
-	}
-	return posts[start:]
-}
-
-func (v *threadView) maybeLoadOlderPosts() {
-	if v.thread == nil || v.width == 0 || v.loadedStart == 0 || v.viewport.YOffset > threadPreloadThreshold {
-		return
+func (v *threadView) maybeLoadOlderPosts() tea.Cmd {
+	if v.thread == nil || v.width == 0 || v.loadedStart == 0 || v.viewport.YOffset > threadPreloadThreshold || v.loadingOlder {
+		return nil
 	}
 
 	nextStart := v.loadedStart - threadPageSize
@@ -252,19 +315,17 @@ func (v *threadView) maybeLoadOlderPosts() {
 		nextStart = 0
 	}
 	if nextStart == v.loadedStart {
-		return
+		return nil
 	}
 
-	oldContent := renderPosts(v.visiblePosts, v.width)
-	oldLines := renderedLineCount(oldContent)
-
-	v.loadedStart = nextStart
-	v.visiblePosts = visibleThreadPosts(v.thread.PostStream.Posts, v.loadedStart)
-	newContent := renderPosts(v.visiblePosts, v.width)
-	newLines := renderedLineCount(newContent)
-
-	v.viewport.SetContent(newContent)
-	v.viewport.SetYOffset(v.viewport.YOffset + (newLines - oldLines))
+	postIDs := append([]int(nil), v.thread.PostStream.Stream[nextStart:v.loadedStart]...)
+	v.loadingOlder = true
+	client := v.client
+	topicID := v.topic.ID
+	return func() tea.Msg {
+		posts, err := client.GetThreadPosts(topicID, postIDs)
+		return olderPostsLoadedMsg{start: nextStart, posts: posts, err: err}
+	}
 }
 
 func renderedLineCount(content string) int {
