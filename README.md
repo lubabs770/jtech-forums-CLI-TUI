@@ -111,8 +111,8 @@ Release flow:
 4. Push the branch and tag:
 
 ```sh
-git push fork <branch>
-git push fork v0.1.0
+git push origin <branch>
+git push origin v0.1.0
 ```
 
 5. The GitHub Actions `Release` workflow will build the platform archives and attach them to the tag release.
@@ -124,8 +124,8 @@ npm publish
 
 Notes:
 
-- the package currently downloads release binaries from `TripleU613/jtech-forums-CLI-TUI`
-- if you want to publish from a different repo, update `package.json` field `jtechforums.releaseRepo`
+- the package downloads release binaries from `lubabs770/jtech-forums-CLI-TUI`
+- if you ever move releases elsewhere, update `package.json` field `jtechforums.releaseRepo`
 - users need `npm install -g jtechforums` for a globally available `jtechforums` command
 
 Project layout:

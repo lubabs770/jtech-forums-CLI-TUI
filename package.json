@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TripleU613/jtech-forums-CLI-TUI.git"
+    "url": "git+https://github.com/lubabs770/jtech-forums-CLI-TUI.git"
   },
   "keywords": [
     "cli",
@@ -30,6 +30,6 @@
     "tar": "^7.4.3"
   },
   "jtechforums": {
-    "releaseRepo": "TripleU613/jtech-forums-CLI-TUI"
+    "releaseRepo": "lubabs770/jtech-forums-CLI-TUI"
   }
 }
